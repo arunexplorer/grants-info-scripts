@@ -1,0 +1,128 @@
+01. Download CSV file:
+`
+curl `
+--url "https://www.gatesfoundation.org/-/media/files/bmgf-grants.csv" `
+--location `
+--output ( "data/grants-BMGF.{0}.csv" -f (Get-Date -Format "yyyyMMdd") )
+
+02. Create/Update the hyperlink
+`
+Remove-Item data/grants-BMGF.csv; `
+New-Item `
+-ItemType HardLink `
+-Target ("${PWD}/data/grants-BMGF.{0}.csv" -f (Get-Date -Format "yyyyMMdd")) `
+-Name data/grants-BMGF.csv
+
+03.a. Import into HashTable (using Import-Csv)
+- open the file in editor, remove first line (which has date-stamp), save it
+- run the command:
+${grantsBMGF} = Import-Csv -Path data/grants-BMGF.csv
+
+03.b. Import into HashTable (using a combination of Get-Content, Select-Object and ConvertFrom-Csv):
+${grantsBMGF} = (Get-Content data/grants-BMGF.csv | Select-Object -Skip 1) | ConvertFrom-Csv
+#${grantsBMGF} = (Get-Content /data/grants-BMGF.csv | Select-Object -Skip 1 -First 3) | ConvertFrom-Csv
+
+04. Verify Import into HashTable variable
+${grantsBMGF}.Count
+
+05. Get all stats...
+`
+${grantsBMGF} `
+| Measure-Object "AMOUNT COMMITTED" -AllStats `
+| Format-Table `
+     @{ label = "{0,6}" -f "Count"   ; expression = { "{0,6:n0}" -f ${_}.Count } } `
+   , @{ label = "{0,18}" -f "Sum"    ; expression = { "{0,18:n2}" -f ${_}.Sum } } `
+   , @{ label = "{0,18}" -f "Average"; expression = { "{0,18:n2}" -f ${_}.Average } } `
+   , @{ label = "{0,18}" -f "Maximum"; expression = { "{0,18:n2}" -f ${_}.Maximum } } `
+   , @{ label = "{0,18}" -f "Minimum"; expression = { "{0,18:n2}" -f ${_}.Minimum } }
+
+06. Probe for a specific grantee (edit the True part for any addnl condition)
+`
+${grantsBMGF} `
+| Where-Object {
+       ${_}."GRANTEE" -Like "*Clinton*" `
+  -and $true
+  } `
+| Group-Object -Property "GRANTEE" `
+| Sort-Object -Property Count -Descending `
+| Format-Table `
+     Name `
+   , Count
+
+07. Probe for a particular condition
+`
+${grantsBMGF} `
+| Where-Object {
+       ${_}."AMOUNT COMMITTED" -eq "40600000" `
+  -and ${_}."GRANT ID" -eq "OPP1212101" `
+  -and ${_}."GRANTEE COUNTRY" -eq "India" `
+  -and $true
+  } `
+
+08. Get grant listing and format it beautifully
+`
+${grantsBMGF} `
+| Where-Object {
+       ${_}."GRANTEE" -Like "*Clinton*" `
+  -and $true
+  } `
+| Group-Object -Property "GRANTEE" `
+| Select-Object `
+     @{ name = "Grantee"; expression = { ${_}.Name } } `
+   , @{ name = "Count"  ; expression = { ${_}.Count } } `
+   , @{ name = "Sum"    ; expression = { (${_}.Group | Measure-Object -Property "AMOUNT COMMITTED" -Sum).Sum } } `
+   , @{ name = "Maximum"; expression = { (${_}.Group | Measure-Object -Property "AMOUNT COMMITTED" -Maximum).Maximum } } `
+   , @{ name = "Minimum"; expression = { (${_}.Group | Measure-Object -Property "AMOUNT COMMITTED" -Minimum).Minimum } } `
+| Format-Table `
+     @{ label = "Grantee"            ; expression = { ${_}.Grantee } } `
+   , @{ label = "{0,5}" -f "Count"   ; expression = { ${_}.Count } } `
+   , @{ label = "{0,18}" -f "Sum"    ; expression = { "{0,18:n2}" -f ${_}.Sum } } `
+   , @{ label = "{0,18}" -f "Avg"    ; expression = { "{0,18:n2}" -f ( ${_}.Sum/${_}.Count ) } } `
+   , @{ label = "{0,18}" -f "Minimum"; expression = { "{0,18:n2}" -f ${_}.Minimum } } `
+   , @{ label = "{0,18}" -f "Maximum"; expression = { "{0,18:n2}" -f ${_}.Maximum } }
+
+09.
+`
+${grantsBMGF} `
+| Where-Object {
+       ${_}."GRANTEE" -Like "*Clinton*" `
+  -and $true
+  } `
+| Group-Object -Property "DATE COMMITTED" `
+| Select-Object `
+     @{ name = "Year" ; expression = { ${_}.Name.Substring(0,4) } } `
+   , @{ name = "Count"; expression = { ${_}.Count } } `
+   , @{ name = "Sum"  ; expression = { (${_}.Group | Measure-Object -Property "AMOUNT COMMITTED" -Sum).Sum } } `
+| Group-Object Year `
+| Select-Object `
+     @{ name = "Year"   ; expression = { ${_}.Name } } `
+   , @{ name = "Count"  ; expression = { (${_}.Group | Measure-Object -Property "Count" -Sum).Sum } } `
+   , @{ name = "Sum"    ; expression = { (${_}.Group | Measure-Object -Property "Sum" -Sum).Sum } } `
+   , @{ name = "Maximum"; expression = { (${_}.Group | Measure-Object -Property "Sum" -Maximum).Maximum } } `
+   , @{ name = "Minimum"; expression = { (${_}.Group | Measure-Object -Property "Sum" -Minimum).Minimum } } `
+| Format-Table `
+     @{ label = "Year"            ; expression = { ${_}.Year } } `
+   , @{ label = "{0,5}" -f "Count"; expression = { ${_}.Count } } `
+   , @{ label = "{0,16}" -f "Sum" ; expression = { "{0,16:n2}" -f ${_}.Sum } } `
+   , @{ label = "{0,14}" -f "Avg" ; expression = { "{0,14:n2}" -f ( ${_}.Sum/${_}.Count ) } }
+#   , @{ label = "{0,18}" -f "Minimum"; expression = { "{0,18:n2}" -f ${_}.Minimum } } `
+#   , @{ label = "{0,18}" -f "Maximum"; expression = { "{0,18:n2}" -f ${_}.Maximum } }
+#TBD - max and min fields
+
+10. Get grant URLs
+`
+${grantsBMGF} `
+| Where-Object {
+       ${_}."GRANTEE" -Like "*Clinton*" `
+  -and $true
+  } `
+| Sort-Object -Property "DATE COMMITTED" -Descending `
+| Format-Table `
+  @{
+       label = "URL"
+     ; expression = {
+                       "https://www.gatesfoundation.org/about/committed-grants/{0}/{1}" -f
+                           ${_}."DATE COMMITTED".Replace("-", "/") `
+                         , ${_}."GRANT ID".Replace("-", "") `
+                     }
+  }
