@@ -1,0 +1,111 @@
+=====================================================================================
+api:
+    doc: https://api.reporter.nih.gov
+    endpoint: https://api.reporter.nih.gov/v1/projects/Search
+    user: <open to all>
+    pwd_hint: <open to all>
+    email: <open to all>
+    userid: <open to all>
+    oauth: <open to all>
+    apikey: <open to all>
+    additional_info:
+        - prj details using appl_id 10239500: https://reporter.nih.gov/project-details/10239500
+=====================================================================================
+
+=====================================================================================
+CURL.exe (in cmd shell) examples:
+--------------------------------
+rem set apikey="<enter_your_key>"
+rem --header "api-key: %apikey%" ^
+
+curl.exe ^
+--header "Accept: application/json" ^
+--header "Content-Type: application/json" ^
+--request POST ^
+--data "{ \"criteria\": { \"pi_names\": [ {\"any_name\": \"DASZAK\"} ] } }" ^
+--url "https://api.reporter.nih.gov/v1/projects/Search"
+
+sample output:
+<too long, please consult https://api.reporter.nih.gov/#/constraints>
+
+Example using a different criterion:
+--data "{ \"criteria\": { \"project_nums\": [\"2R01AI110964-06\"] } }" ^
+--data "{ \"criteria\": { \"project_nums\": \"2R01AI110964*\" } }" ^
+
+curl (in bash shell) examples:
+------------------------------
+# apikey="<enter_your_key>"
+#--header "api-key: ${apikey}" \
+
+curl \
+--header "Accept: application/json" \
+--header "Content-Type: application/json" \
+--request POST \
+--data "{ \"criteria\": { \"pi_names\": [ {\"any_name\": \"DASZAK\"} ] } }" \
+--url "https://api.reporter.nih.gov/v1/projects/Search"
+
+sample output:
+<too long, please consult https://api.reporter.nih.gov/#/constraints>
+
+Example using a different criterion:
+--data "{ \"criteria\": { \"project_nums\": [\"2R01AI110964-06\"] } }" \
+--data "{ \"criteria\": { \"project_nums\": \"2R01AI110964*\" } }" \
+
+CURL.exe (in powershell shell) examples:
+--------------------------------
+#${apikey} = "<enter_your_key>"
+#--header "api-key: ${apikey}" `
+
+curl.exe `
+--header "Accept: application/json" `
+--header "Content-Type: application/json" `
+--request POST `
+--data '{ \"criteria\": { \"pi_names\": [ {\"any_name\": \"DASZAK\"} ] } }' `
+--url "https://api.reporter.nih.gov/v1/projects/Search"
+
+sample output:
+<too long, please consult https://api.reporter.nih.gov/#/constraints>
+
+Example using a different criterion:
+--data '{ \"criteria\": { \"project_nums\": [\"2R01AI110964-06\"] } }' `
+--data '{ \"criteria\": { \"project_nums\": \"2R01AI110964*\" } }' `
+=====================================================================================
+
+=====================================================================================
+Invoke-RestMethod examples:
+--------------------------
+#${apikey} = "<enter_your_key>"
+
+Invoke-RestMethod `
+-Headers ( @{
+    "Content-Type" = "application/json"
+    ; "Accept" = "application/json"
+#    ; "api-key" = "${apikey}"
+} )`
+-Method Post `
+-Body ( @{
+    "criteria" = @{"pi_names" = @( @{"any_name" = "DASZAK"} )}
+;   "offset" = 0
+;   "limit" = 500
+;   "sort_field" = "project_start_date"
+;   "sort_order" = "desc"
+} | ConvertTo-Json -Depth 3) `
+-Uri "https://api.reporter.nih.gov/v1/projects/Search" `
+| ConvertTo-JSon
+
+sample output:
+<too long, please consult https://api.reporter.nih.gov/#/constraints>
+
+Example using a different criterion:
+    "criteria" = @{"project_nums" = @("2R01AI110964-06")}
+    "criteria" = @{ `
+        "advanced_text_search" = @{ `
+              "operator" = "and"
+            ; "search_field" = "projecttitle,terms"
+            ; "search_text" = "bat"
+        }
+    }
+    "criteria" = @{"pi_names" = @( @{"any_name" = "DASZAK"} )}
+    "criteria" = @{"org_names" = @( "ICAHN SCHOOL OF MEDICINE AT MOUNT SINAI" )}
+    "criteria" = @{"pi_names" = @( @{"first_name" = "florian"; "last_name" = "krammer"} )}
+=====================================================================================

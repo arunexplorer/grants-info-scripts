@@ -1,0 +1,9 @@
+
+# BMGF csv.file location
+data/
+
+# results after firing NIH ReportER API
+results.json
+
+# do not track folder
+do_not_track/
