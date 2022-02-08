@@ -105,8 +105,10 @@ ${year_upto}..${year_from} | ForEach-Object {
 # to filter names further, for example "Mark", use the following
 #${nih_projects}.results = (${nih_projects}.results | Where-Object contact_pi_name -NotLike "*Mark*")
 ${nih_projects}.meta = ${api_response}.meta
-Write-Host "Saving results into file: ${results_file}..."
-${nih_projects} | ConvertTo-Json -Depth 4 | Out-File ${results_file}
+if ( ${cfg}.save_results ) {
+   Write-Host "Saving results into file: ${results_file}..."
+   ${nih_projects} | ConvertTo-Json -Depth 4 | Out-File ${results_file}
+}
 
 # aggregate based on award_amount
 ${nih_projects}.results `
