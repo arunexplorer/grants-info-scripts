@@ -59,7 +59,24 @@ ${grantsBMGF} `
   -and $true
   } `
 
-08. Get grant listing and format it beautifully
+08. Get grant listings and format them beautifully
+`
+${grantsBMGF} `
+| Where-Object {
+       ${_}."GRANTEE WEBSITE" -Like "*Clinton*" `
+  -and ${_}."DATE COMMITTED" -Like "2021*"
+  -and $true
+  } `
+| Sort-Object "DATE COMMITTED" -Descending `
+| Format-Table `
+     @{ label = "Grantee"            ; expression = { ${_}.Grantee } } `
+   , @{ label = "{0,7}" -f "Date"    ; expression = { ${_}."DATE COMMITTED" } } `
+   , @{ label = "{0,14}" -f "Amount" ; expression = { "{0,14:n2}" -f [Int] ${_}."AMOUNT COMMITTED" } } `
+   , @{ label = "Division"           ; expression = { ${_}."DIVISION" } } `
+   , @{ label = "Topic"              ; expression = { ${_}."TOPIC" } } `
+   , @{ label = "Purpose"            ; expression = { ${_}."PURPOSE" } }
+
+09. Get grant listing and aggregate across grantees & format them beautifully
 `
 ${grantsBMGF} `
 | Where-Object {
@@ -81,7 +98,7 @@ ${grantsBMGF} `
    , @{ label = "{0,18}" -f "Minimum"; expression = { "{0,18:n2}" -f ${_}.Minimum } } `
    , @{ label = "{0,18}" -f "Maximum"; expression = { "{0,18:n2}" -f ${_}.Maximum } }
 
-09.
+10. Get grant listing and aggregate across years & format them beautifully
 `
 ${grantsBMGF} `
 | Where-Object {
@@ -109,7 +126,7 @@ ${grantsBMGF} `
 #   , @{ label = "{0,18}" -f "Maximum"; expression = { "{0,18:n2}" -f ${_}.Maximum } }
 #TBD - max and min fields
 
-10. Get grant URLs
+11. Get grant URLs
 `
 ${grantsBMGF} `
 | Where-Object {
