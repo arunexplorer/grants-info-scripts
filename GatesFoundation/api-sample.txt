@@ -73,6 +73,7 @@ ${grantsBMGF} `
    , @{ label = "{0,14}" -f "Amount" ; expression = { "{0,14:n2}" -f [Int] ${_}."AMOUNT COMMITTED" } } `
    , @{ label = "Division"           ; expression = { ${_}."DIVISION" } } `
    , @{ label = "Topic"              ; expression = { ${_}."TOPIC" } } `
+#   , @{ label = "Topic"              ; expression = { ${_}."TOPIC".Length -lt 30? ${_}."TOPIC" : ${_}."TOPIC".Substring(0,30) + "..." } } `
    , @{ label = "Purpose"            ; expression = { ${_}."PURPOSE" } }
 
 09. Get grant listing and aggregate across grantees & format them beautifully
