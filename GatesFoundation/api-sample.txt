@@ -63,8 +63,7 @@ ${grantsBMGF} `
 `
 ${grantsBMGF} `
 | Where-Object {
-       ${_}."GRANTEE WEBSITE" -Like "*Clinton*" `
-  -and ${_}."DATE COMMITTED" -Like "2021*"
+       ${_}."GRANTEE" -Like "*Clinton*" `
   -and $true
   } `
 | Sort-Object "DATE COMMITTED" -Descending `
