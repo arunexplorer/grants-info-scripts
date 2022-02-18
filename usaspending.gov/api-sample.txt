@@ -1,0 +1,48 @@
+=====================================================================================
+api:
+    doc: https://api.usaspending.gov
+    endpoint: https://api.usaspending.gov/docs/endpoints
+    user: <open to all>
+    pwd_hint: <open to all>
+    email: <open to all>
+    userid: <open to all>
+    oauth: <open to all>
+    apikey: <open to all>
+    additional_info:
+        - https://api.usaspending.gov/docs/intro-tutorial
+=====================================================================================
+
+=====================================================================================
+- get "award_agencies" list of all user selectable flagged toptier agencies with at least one subtier agency
+Invoke-RestMethod `
+-Headers ( @{ `
+    "Content-Type" = "application/json" `
+    ; "Accept" = "application/json" `
+} ) `
+-Method Post `
+-Body ( @{ `
+    "type" =  "award_agencies" `
+} | ConvertTo-Json -Depth 1) `
+-Uri "https://api.usaspending.gov/api/v2/bulk_download/list_agencies/" `
+| ConvertTo-JSon -Depth 3
+
+Example using a different criterion:
+  - gets info on sub_agencies for the agency specified
+    @{ `
+        "type" =  "award_agencies" `
+      ; "agency" =  126 `
+    }
+    - get "account_agencies" list of all toptier agencies with at least one DABS submission
+    @{ `
+        "type" =  "account_agencies" `
+    }
+
+- using references/toptier_agencies:
+Invoke-RestMethod `
+-Headers ( @{ `
+    "Content-Type" = "application/json" `
+    ; "Accept" = "application/json" `
+} ) `
+-Method Get `
+-Uri "https://api.usaspending.gov/api/v2/references/toptier_agencies/"
+=====================================================================================
