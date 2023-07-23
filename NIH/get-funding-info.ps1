@@ -45,6 +45,14 @@ if (${cfg}.search_text -ne $null) {
             ; "search_text" = ${cfg}.search_text
          }
 }
+# to filter using project number (grant info) specified in the config file
+if (${cfg}.project_nums -ne $null) {
+   ${criteria}["project_nums"] = @()
+   ${nums_to_probe} = ${cfg}.project_nums
+   ${nums_to_probe} -split "; " | Where-Object {$_} | ForEach-Object {
+      $criteria["project_nums"] += $_
+   }
+}
 Write-Host "Criteria Used to Fetch API Results: "
 $criteria | ConvertTo-Json -Depth 3
 #Write-Host "Press any key to continue..."
