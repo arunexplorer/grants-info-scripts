@@ -110,9 +110,19 @@ ${year_upto}..${year_from} | ForEach-Object {
       ${offset} += ${cfg}.call_batch_size
    } while (${limit_count} -gt 0)
 }
+
 # to filter names further, for example "Mark", use the following
 #${nih_projects}.results = (${nih_projects}.results | Where-Object contact_pi_name -NotLike "*Mark*")
 ${nih_projects}.meta = ${api_response}.meta
+
+# fix empty "award_amount" - this happened once when the Reporter Projects API returned empty award_amount
+${nih_projects}.results | ForEach-Object {
+   if ( ${_}.award_amount -eq ${null} ) {
+      ${_}.award_amount = ${_}.direct_cost_amt + ${_}.indirect_cost_amt
+   }
+}
+
+# if save results flag is set...
 if ( ${cfg}.save_results ) {
    Write-Host "Saving results into file: ${results_file}..."
    ${nih_projects} | ConvertTo-Json -Depth 4 | Out-File ${results_file}
