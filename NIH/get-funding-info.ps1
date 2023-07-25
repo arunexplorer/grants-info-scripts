@@ -53,6 +53,14 @@ if (${cfg}.project_nums -ne $null) {
       $criteria["project_nums"] += $_
    }
 }
+# to filter projects funded using Covid Appropriation only
+if (${cfg}.covid_response_code -ne $null) {
+   ${criteria}["covid_response"] = @()
+   ${covid_response_code} = ${cfg}.covid_response_code
+   ${covid_response_code} -split "; " | Where-Object {$_} | ForEach-Object {
+      $criteria["covid_response"] += $_
+   }
+}
 Write-Host "Criteria Used to Fetch API Results: "
 $criteria | ConvertTo-Json -Depth 3
 #Write-Host "Press any key to continue..."
@@ -192,6 +200,7 @@ if ( ${cfg}.show_prjs ) {
         appl_id `
       , @{ label = "{0,6}" -f "Active"  ; expression = { "{0,6}" -f  ( ${_}.is_active? "Yes": "No") } } `
       , @{ label = "{0,14}" -f "Amount" ; expression = { "{0,14:n2}" -f ${_}.award_amount } } `
+      , @{ label = "Covid"              ; expression = { ${_}.covid_response } } `
       , @{ label = "F. Yr"              ; expression = { ${_}.fiscal_year } } `
       , @{ label = "{0,10}" -f "Start"  ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_start_date } } `
       , @{ label = "{0,10}" -f "End"    ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_end_date } } `
