@@ -1,30 +1,30 @@
 
 # constants...ermm, sort of
+${section_separator} = "=============================================================================="
 ${nih_data_start_year} = 1985    # it appears this is the start year in nih db - change it, if not
+${reporter_projects_endpoint} = "https://api.reporter.nih.gov/v2/projects/search"
 
 # variables..
 ${cfg_file} = ".\params.cfg"
 ${cfg_contents} = Get-Content ${cfg_file}
-Write-Host ""
+Write-Host "`n${section_separator}"
 Write-Host "Configuration Used to Fetch API Results:"
 ${cfg_contents}
+Write-Host "${section_separator}"
 ${cfg} = ${cfg_contents} | ConvertFrom-Json
 Remove-Variable cfg_contents
 ${results_file} = ".\results.json"
-Write-Host ""
 
 # the criteria dictionary...
-${criteria} = @{ }
-# ${criteria}["exclude_subprojects"] = $false
-# ${criteria}["sub_project_only"] = $false
+${criteria} = @{}
 # to filter using org names specified in the config file
 if (${cfg}.orgs -ne $null) {
    ${criteria}["org_names"] = @()
    ${names_to_probe} = ${cfg}.orgs
    # this doesn't work, if the list has only one object, so avoid this
-   #$criteria["org_names"] = ${names_to_probe} -split "; " | Where-Object {$_}
-   ${names_to_probe} -split "; " | Where-Object {$_} | ForEach-Object {
-      $criteria["org_names"] += $_
+   #${criteria}["org_names"] = ${names_to_probe} -split "; " | Where-Object { ${_} }
+   ${names_to_probe} -split "; " | Where-Object { ${_} } | ForEach-Object {
+      ${criteria}["org_names"] += ${_}
    }
 }
 # to filter using principal investigator names specified in the config file
@@ -32,12 +32,15 @@ if (${cfg}.pis -ne $null) {
    ${criteria}["pi_names"] = @()
    ${names_to_probe} = ${cfg}.pis
    ${names_tokens} = ${names_to_probe}.Split("; ", [System.StringSplitOptions]::RemoveEmptyEntries)
-   ${names_tokens} | Where-Object {$_} | ForEach-Object {
+   ${names_tokens} | Where-Object { ${_} } | ForEach-Object {
       # in this flow, the projects are filtered for specific pi/pis (the if decision above)
       # if there are multiple pis, make sure the "hide_pis" flag is unset in any case (no matter how it is set in the params.cfg)
       if ( ( ${names_tokens}.count -gt 1 ) -and ( ${cfg}.hide_pis = $true ) ) { ${cfg}.hide_pis = $false }
-      $name_parts = $_.split()
-      $criteria["pi_names"] += @{ "first_name" = $name_parts[0]; "last_name" = $name_parts[$name_parts.count - 1] }
+      ${name_parts} = ${_}.split()
+      ${criteria}["pi_names"] += @{
+           "first_name" = ${name_parts}[0]
+         ; "last_name" = ${name_parts}[${name_parts}.count - 1]
+      }
    }
 }
 # to filter using search_abstractfield text specified in the config file
@@ -53,26 +56,25 @@ if (${cfg}.search_text -ne $null) {
 if (${cfg}.project_nums -ne $null) {
    ${criteria}["project_nums"] = @()
    ${nums_to_probe} = ${cfg}.project_nums
-   ${nums_to_probe} -split "; " | Where-Object {$_} | ForEach-Object {
-      $criteria["project_nums"] += $_
+   ${nums_to_probe} -split "; " | Where-Object { ${_} } | ForEach-Object {
+      ${criteria}["project_nums"] += ${_}
    }
 }
 # to filter projects funded using Covid Appropriation only
 if (${cfg}.covid_response_code -ne $null) {
    ${criteria}["covid_response"] = @()
    ${covid_response_code} = ${cfg}.covid_response_code
-   ${covid_response_code} -split "; " | Where-Object {$_} | ForEach-Object {
-      $criteria["covid_response"] += $_
+   ${covid_response_code} -split "; " | Where-Object {${_}} | ForEach-Object {
+      ${criteria}["covid_response"] += ${_}
    }
    # in this flow, the projects are filtered to pull those with "covid appropriations only" (the if decision above)
    # so, make sure the "show_covid_response" flag is set in any case (no matter how it is set in the params.cfg)
    ${cfg}.show_covid_response = $true
 }
+Write-Host "`n${section_separator}"
 Write-Host "Criteria Used to Fetch API Results: "
-$criteria | ConvertTo-Json -Depth 3
-#Write-Host "Press any key to continue..."
-#$null = $Host.UI.RawUI.ReadKey("NoEcho, IncludeKeyDown")
-Write-Host ""
+${criteria} | ConvertTo-Json -Depth 3
+Write-Host "${section_separator}"
 
 # initialize api_response and nih_project datasets...
 ${api_response} = $null
@@ -86,17 +88,16 @@ if ( ${use_years} ) {
    if ( ${year_upto} -eq $null ) { ${year_upto} = (Get-Date).Year; }
    if ( ${year_from} -eq $null ) { ${year_from} = ${nih_data_start_year}; }
 }
+Write-Host "`n${section_separator}"
+Write-Host "`nRePORTER API Response:"
 # iterate over the years, if years were specified, else, this loop will be executed just once as PS treats $null as 0 when used in range
 ${year_upto}..${year_from} | ForEach-Object {
    if ( ${use_years} ) {
-      Write-Host ("`nObtaining Response for the Year: {0}" -f ${_})
+      Write-Host ("Obtaining Response for the Year: {0}" -f ${_})
    }
    ${limit_count} = ${cfg}.call_batch_size
    ${offset} = 0
    do {
-      #Write-Host ("Offset Start: {0}; Limit: {1}" -f ${offset}, ${limit_count})
-      #Write-Host "Press any key to continue..."
-      #$null = $Host.UI.RawUI.ReadKey("NoEcho, IncludeKeyDown")
       Start-Sleep -Seconds 5
       if ( ${use_years} ) {
          ${criteria}["fiscal_years"] = @( ${_} )
@@ -105,7 +106,7 @@ ${year_upto}..${year_from} | ForEach-Object {
       ${api_response} = `
          Invoke-RestMethod `
          -Headers ( @{
-            "Content-Type" = "application/json"
+              "Content-Type" = "application/json"
             ; "Accept" = "application/json"
          } )`
          -Method Post `
@@ -116,7 +117,7 @@ ${year_upto}..${year_from} | ForEach-Object {
          ;   "sort_field" = "project_start_date"
          ;   "sort_order" = "desc"
          } | ConvertTo-Json -Depth 3) `
-         -Uri "https://api.reporter.nih.gov/v2/projects/search"
+         -Uri ${reporter_projects_endpoint}
       # use the response
       ${api_response}.meta | Format-Table
       ${nih_projects}.results += ${api_response}.results
@@ -125,6 +126,7 @@ ${year_upto}..${year_from} | ForEach-Object {
       ${offset} += ${cfg}.call_batch_size
    } while (${limit_count} -gt 0)
 }
+Write-Host "${section_separator}"
 
 # to filter names further, for example "Mark", use the following
 #${nih_projects}.results = (${nih_projects}.results | Where-Object contact_pi_name -NotLike "*Mark*")
@@ -144,6 +146,8 @@ if ( ${cfg}.save_results ) {
 }
 
 # aggregate based on award_amount
+Write-Host "`n${section_separator}"
+Write-Host "`nOverall Count, Award Amounts, Average, Max & Min:"
 ${nih_projects}.results `
 | Measure-Object -Property award_amount -Sum -Average -Maximum -Minimum `
 | Format-Table `
@@ -152,8 +156,11 @@ ${nih_projects}.results `
    , @{ label = "{0,14}"   -f "Average"; expression = { "{0,14:n2}" -f ${_}.Average } } `
    , @{ label = "{0,14}"   -f "Maximum"; expression = { "{0,14:n2}" -f ${_}.Maximum } } `
    , @{ label = "{0,14}"   -f "Minimum"; expression = { "{0,14:n2}" -f ${_}.Minimum } }
+Write-Host "${section_separator}"
 
 # group by organization and then aggregate award_amount
+Write-Host "`n${section_separator}"
+Write-Host "`nOrganizational Groupimg:"
 ${nih_projects}.results `
 | Group-Object -Property { ${_}.organization.org_name } `
 | Select-Object `
@@ -162,11 +169,14 @@ ${nih_projects}.results `
    , @{ name = "Sum"  ; expression = { (${_}.Group | Measure-Object -Property award_amount -Sum).Sum } } `
 | Sort-Object -Property Sum -Descending `
 | Format-Table `
-     @{ label = "{0,20}" -f "Org Name"; expression = { ${_}.Org } } `
-   , @{ label = "{0,3:n0}" -f "#s"    ; expression = { "{0,3:n0}"  -f ${_}.Count } } `
-   , @{ label = "{0,14}" -f "Sum"     ; expression = { "{0,14:n2}" -f ${_}.Sum } }
+     @{ label = "{0}" -f "Organization"; expression = { ${_}.Org } } `
+   , @{ label = "{0,3:n0}" -f "#s"     ; expression = { "{0,3:n0}"  -f ${_}.Count } } `
+   , @{ label = "{0,14}" -f "Sum"      ; expression = { "{0,14:n2}" -f ${_}.Sum } }
+Write-Host "${section_separator}"
 
 # group by year and then aggregate award amount
+Write-Host "`n${section_separator}"
+Write-Host "`n:Spread Across Years:"
 ${nih_projects}.results `
 | Group-Object -Property fiscal_year `
 | Select-Object `
@@ -179,8 +189,11 @@ ${nih_projects}.results `
    , @{ name = "{0,3:n0}" -f "#s"; expression = { "{0,3:n0}" -f ${_}.Count } } `
    , @{ name = "{0,14}" -f "Sum" ; expression = { "{0,14:n2}" -f ${_}.Sum } } `
    , @{ name = "{0,14}" -f "Avg" ; expression = { "{0,14:n2}" -f (${_}.Sum / ${_}.Count) } }
+Write-Host "${section_separator}"
 
 # group by lead and then aggregate award amount
+Write-Host "`n${section_separator}"
+Write-Host "`nGroup Across Lead Investigators:"
 ${nih_projects}.results `
 | Group-Object -Property contact_pi_name `
 | Select-Object `
@@ -199,6 +212,7 @@ ${nih_projects}.results `
    , @{ name = "{0,14}" -f "Min" ; expression = { "{0,14:n2}" -f ${_}.Minimum } } `
    , @{ name = "{0,14}" -f "Avg" ; expression = { "{0,14:n2}" -f (${_}.Sum / ${_}.Count) } } `
    , @{ name = "Organizations"   ; expression = { ${_}.Organizations } }
+Write-Host "${section_separator}"
 
 # individual projects
 if ( ${cfg}.show_prjs ) {
@@ -222,5 +236,9 @@ if ( ${cfg}.show_prjs ) {
       if ( ${cfg}.hide_pis ) { ${display_columns}.RemoveAt(8) }
       # fine-tune output display = ends...
       # now display project list in table format
+      Write-Host "`n${section_separator}${section_separator}"
+      Write-Host "`nProject Information:"
       ${nih_projects}.results | Format-Table ${display_columns}
+      Write-Host "${section_separator}${section_separator}"
+      Write-Host ""
 }
