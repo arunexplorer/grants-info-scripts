@@ -60,6 +60,9 @@ if (${cfg}.covid_response_code -ne $null) {
    ${covid_response_code} -split "; " | Where-Object {$_} | ForEach-Object {
       $criteria["covid_response"] += $_
    }
+   # in this flow, the projects are filtered to pull those with "covid appropriations only" (the if decision above)
+   # so, make sure the "show_covid_response" flag is set in any case (no matter how it is set in the params.cfg)
+   ${cfg}.show_covid_response = $true
 }
 Write-Host "Criteria Used to Fetch API Results: "
 $criteria | ConvertTo-Json -Depth 3
@@ -195,27 +198,23 @@ ${nih_projects}.results `
 
 # individual projects
 if ( ${cfg}.show_prjs ) {
-   ${nih_projects}.results `
-   | Format-Table `
-        appl_id `
-      , @{ label = "{0,6}" -f "Active"  ; expression = { "{0,6}" -f  ( ${_}.is_active? "Yes": "No") } } `
-      , @{ label = "{0,14}" -f "Amount" ; expression = { "{0,14:n2}" -f ${_}.award_amount } } `
-      , @{ label = "Covid"              ; expression = { ${_}.covid_response } } `
-      , @{ label = "F. Yr"              ; expression = { ${_}.fiscal_year } } `
-      , @{ label = "{0,10}" -f "Start"  ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_start_date } } `
-      , @{ label = "{0,10}" -f "End"    ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_end_date } } `
-      , @{ label = "{0,10}" -f "Awarded"; expression = { "{0:yyyy-MM-dd}" -f ${_}.award_notice_date } } `
-      , contact_pi_name `
-      , @{ label = "{0,10}" -f "Title"  ;  expression = { "{0,10}" -f ( ${_}.project_title.Substring(0) ) } } `
-      # TODO: check the logic on this later...
-      #, @{
-      #     label = "Other PI"
-      #   ; expression = {
-      #               (
-      #                  (${_}.contact_pi_name -Notlike $criteria["pi_names"][0].last_name + "*") `
-      #                  -and (${_}.principal_investigators.Count -GT 1) `
-      #                  -and ((${_}.principal_investigators | Where-Object first_name -Like ("*" + $criteria["pi_names"][0].first_name + "*")).Count -EQ 1)
-      #               ) ? "Yes": "No"
-      #            }
-      #}
+      ${display_columns} = ( [Collections.Generic.List[HashTable]] ( `
+              @{ label = "{0}"    -f "appl_id"; expression = { "{0}" -f  ${_}.appl_id } } `
+            , @{ label = "{0,6}"  -f "Active" ; expression = { "{0,6}" -f  ( ${_}.is_active? "Yes": "No") } } `
+            , @{ label = "{0,14}" -f "Amount" ; expression = { "{0,14:n2}" -f ${_}.award_amount } } `
+            , @{ label = "Covid"              ; expression = { ${_}.covid_response } } `
+            , @{ label = "F.Yr"               ; expression = { ${_}.fiscal_year } } `
+            , @{ label = "{0,10}" -f "Start"  ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_start_date } } `
+            , @{ label = "{0,10}" -f "End"    ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_end_date } } `
+            , @{ label = "{0,10}" -f "Awarded"; expression = { "{0:yyyy-MM-dd}" -f ${_}.award_notice_date } } `
+            , @{ label = "Investigator"       ; expression = { ${_}.contact_pi_name } } `
+            , @{ label = "Title"              ; expression = { "{0}" -f ( ${_}.project_title ) } }
+         )
+      )
+      # fine-tune output display = begins...
+      # if covid_response is not required to be shown in the output, remove it (it is at index 3 now, change later, if needed)
+      if ( -not ${cfg}.show_covid_response ) { ${display_columns}.RemoveAt(3) }
+      # fine-tune output display = ends...
+      # now display project list in table format
+      ${nih_projects}.results | Format-Table ${display_columns}
 }
