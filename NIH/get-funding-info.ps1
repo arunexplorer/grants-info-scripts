@@ -31,7 +31,11 @@ if (${cfg}.orgs -ne $null) {
 if (${cfg}.pis -ne $null) {
    ${criteria}["pi_names"] = @()
    ${names_to_probe} = ${cfg}.pis
-   ${names_to_probe} -split "; " | Where-Object {$_} | ForEach-Object {
+   ${names_tokens} = ${names_to_probe}.Split("; ", [System.StringSplitOptions]::RemoveEmptyEntries)
+   ${names_tokens} | Where-Object {$_} | ForEach-Object {
+      # in this flow, the projects are filtered for specific pi/pis (the if decision above)
+      # if there are multiple pis, make sure the "hide_pis" flag is unset in any case (no matter how it is set in the params.cfg)
+      if ( ( ${names_tokens}.count -gt 1 ) -and ( ${cfg}.hide_pis = $true ) ) { ${cfg}.hide_pis = $false }
       $name_parts = $_.split()
       $criteria["pi_names"] += @{ "first_name" = $name_parts[0]; "last_name" = $name_parts[$name_parts.count - 1] }
    }
@@ -207,13 +211,15 @@ if ( ${cfg}.show_prjs ) {
             , @{ label = "{0,10}" -f "Start"  ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_start_date } } `
             , @{ label = "{0,10}" -f "End"    ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_end_date } } `
             , @{ label = "{0,10}" -f "Awarded"; expression = { "{0:yyyy-MM-dd}" -f ${_}.award_notice_date } } `
-            , @{ label = "Investigator"       ; expression = { ${_}.contact_pi_name } } `
+            , @{ label = "Investigator(s)"    ; expression = { ${_}.contact_pi_name } } `
             , @{ label = "Title"              ; expression = { "{0}" -f ( ${_}.project_title ) } }
          )
       )
       # fine-tune output display = begins...
       # if covid_response is not required to be shown in the output, remove it (it is at index 3 now, change later, if needed)
       if ( -not ${cfg}.show_covid_response ) { ${display_columns}.RemoveAt(3) }
+      # if the investigator (& if only one) need not be shown in the output, remove it (it is at index 8 now, change later, if needed)
+      if ( ${cfg}.hide_pis ) { ${display_columns}.RemoveAt(8) }
       # fine-tune output display = ends...
       # now display project list in table format
       ${nih_projects}.results | Format-Table ${display_columns}
