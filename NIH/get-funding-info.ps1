@@ -18,7 +18,7 @@ ${results_file} = ".\results.json"
 # the criteria dictionary...
 ${criteria} = @{}
 # to filter using org names specified in the config file
-if (${cfg}.orgs -ne $null) {
+if ($null -ne ${cfg}.orgs) {
    ${criteria}["org_names"] = @()
    ${names_to_probe} = ${cfg}.orgs
    # this doesn't work, if the list has only one object, so avoid this
@@ -28,7 +28,7 @@ if (${cfg}.orgs -ne $null) {
    }
 }
 # to filter using principal investigator names specified in the config file
-if (${cfg}.pis -ne $null) {
+if ($null -ne ${cfg}.pis) {
    ${criteria}["pi_names"] = @()
    ${names_to_probe} = ${cfg}.pis
    ${names_tokens} = ${names_to_probe}.Split("; ", [System.StringSplitOptions]::RemoveEmptyEntries)
@@ -44,7 +44,7 @@ if (${cfg}.pis -ne $null) {
    }
 }
 # to filter using search_abstractfield text specified in the config file
-if (${cfg}.search_text -ne $null) {
+if ($null -ne ${cfg}.search_text) {
    ${criteria}["advanced_text_search"] = `
          @{
               "operator" = "and"
@@ -53,7 +53,7 @@ if (${cfg}.search_text -ne $null) {
          }
 }
 # to filter using project number (grant info) specified in the config file
-if (${cfg}.project_nums -ne $null) {
+if ($null -ne ${cfg}.project_nums) {
    ${criteria}["project_nums"] = @()
    ${nums_to_probe} = ${cfg}.project_nums
    ${nums_to_probe} -split "; " | Where-Object { ${_} } | ForEach-Object {
@@ -61,7 +61,7 @@ if (${cfg}.project_nums -ne $null) {
    }
 }
 # to filter projects funded using Covid Appropriation only
-if (${cfg}.covid_response_code -ne $null) {
+if ($null -ne ${cfg}.covid_response_code) {
    ${criteria}["covid_response"] = @()
    ${covid_response_code} = ${cfg}.covid_response_code
    ${covid_response_code} -split "; " | Where-Object {${_}} | ForEach-Object {
@@ -83,10 +83,10 @@ ${nih_projects} = @{"results" = @()}
 # process...
 ${year_upto} = ${cfg}.year_upto
 ${year_from} = ${cfg}.year_from
-${use_years} = ( ${year_upto} -ne $null ) -or ( ${year_from} -ne $null )
+${use_years} = ( $null -ne ${year_upto} ) -or ( $null -ne ${year_from} )
 if ( ${use_years} ) {
-   if ( ${year_upto} -eq $null ) { ${year_upto} = (Get-Date).Year; }
-   if ( ${year_from} -eq $null ) { ${year_from} = ${nih_data_start_year}; }
+   if ( $null -eq ${year_upto} ) { ${year_upto} = (Get-Date).Year; }
+   if ( $null -eq ${year_from} ) { ${year_from} = ${nih_data_start_year}; }
 }
 Write-Host "`n${section_separator}"
 Write-Host "`nRePORTER API Response:"
