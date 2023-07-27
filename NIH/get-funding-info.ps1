@@ -31,7 +31,11 @@ if (${cfg}.orgs -ne $null) {
 if (${cfg}.pis -ne $null) {
    ${criteria}["pi_names"] = @()
    ${names_to_probe} = ${cfg}.pis
-   ${names_to_probe} -split "; " | Where-Object {$_} | ForEach-Object {
+   ${names_tokens} = ${names_to_probe}.Split("; ", [System.StringSplitOptions]::RemoveEmptyEntries)
+   ${names_tokens} | Where-Object {$_} | ForEach-Object {
+      # in this flow, the projects are filtered for specific pi/pis (the if decision above)
+      # if there are multiple pis, make sure the "hide_pis" flag is unset in any case (no matter how it is set in the params.cfg)
+      if ( ( ${names_tokens}.count -gt 1 ) -and ( ${cfg}.hide_pis = $true ) ) { ${cfg}.hide_pis = $false }
       $name_parts = $_.split()
       $criteria["pi_names"] += @{ "first_name" = $name_parts[0]; "last_name" = $name_parts[$name_parts.count - 1] }
    }
@@ -44,6 +48,25 @@ if (${cfg}.search_text -ne $null) {
             ; "search_field" = "projecttitle,terms,abstracttext"
             ; "search_text" = ${cfg}.search_text
          }
+}
+# to filter using project number (grant info) specified in the config file
+if (${cfg}.project_nums -ne $null) {
+   ${criteria}["project_nums"] = @()
+   ${nums_to_probe} = ${cfg}.project_nums
+   ${nums_to_probe} -split "; " | Where-Object {$_} | ForEach-Object {
+      $criteria["project_nums"] += $_
+   }
+}
+# to filter projects funded using Covid Appropriation only
+if (${cfg}.covid_response_code -ne $null) {
+   ${criteria}["covid_response"] = @()
+   ${covid_response_code} = ${cfg}.covid_response_code
+   ${covid_response_code} -split "; " | Where-Object {$_} | ForEach-Object {
+      $criteria["covid_response"] += $_
+   }
+   # in this flow, the projects are filtered to pull those with "covid appropriations only" (the if decision above)
+   # so, make sure the "show_covid_response" flag is set in any case (no matter how it is set in the params.cfg)
+   ${cfg}.show_covid_response = $true
 }
 Write-Host "Criteria Used to Fetch API Results: "
 $criteria | ConvertTo-Json -Depth 3
@@ -102,9 +125,19 @@ ${year_upto}..${year_from} | ForEach-Object {
       ${offset} += ${cfg}.call_batch_size
    } while (${limit_count} -gt 0)
 }
+
 # to filter names further, for example "Mark", use the following
 #${nih_projects}.results = (${nih_projects}.results | Where-Object contact_pi_name -NotLike "*Mark*")
 ${nih_projects}.meta = ${api_response}.meta
+
+# fix empty "award_amount" - this happened once when the Reporter Projects API returned empty award_amount
+${nih_projects}.results | ForEach-Object {
+   if ( ${_}.award_amount -eq ${null} ) {
+      ${_}.award_amount = ${_}.direct_cost_amt + ${_}.indirect_cost_amt
+   }
+}
+
+# if save results flag is set...
 if ( ${cfg}.save_results ) {
    Write-Host "Saving results into file: ${results_file}..."
    ${nih_projects} | ConvertTo-Json -Depth 4 | Out-File ${results_file}
@@ -169,26 +202,25 @@ ${nih_projects}.results `
 
 # individual projects
 if ( ${cfg}.show_prjs ) {
-   ${nih_projects}.results `
-   | Format-Table `
-        appl_id `
-      , @{ label = "{0,6}" -f "Active"  ; expression = { "{0,6}" -f  ( ${_}.is_active? "Yes": "No") } } `
-      , @{ label = "{0,14}" -f "Amount" ; expression = { "{0,14:n2}" -f ${_}.award_amount } } `
-      , @{ label = "F. Yr"              ; expression = { ${_}.fiscal_year } } `
-      , @{ label = "{0,10}" -f "Start"  ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_start_date } } `
-      , @{ label = "{0,10}" -f "End"    ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_end_date } } `
-      , @{ label = "{0,10}" -f "Awarded"; expression = { "{0:yyyy-MM-dd}" -f ${_}.award_notice_date } } `
-      , contact_pi_name `
-      , @{ label = "{0,10}" -f "Title"  ;  expression = { "{0,10}" -f ( ${_}.project_title.Substring(0) ) } } `
-      # TODO: check the logic on this later...
-      #, @{
-      #     label = "Other PI"
-      #   ; expression = {
-      #               (
-      #                  (${_}.contact_pi_name -Notlike $criteria["pi_names"][0].last_name + "*") `
-      #                  -and (${_}.principal_investigators.Count -GT 1) `
-      #                  -and ((${_}.principal_investigators | Where-Object first_name -Like ("*" + $criteria["pi_names"][0].first_name + "*")).Count -EQ 1)
-      #               ) ? "Yes": "No"
-      #            }
-      #}
+      ${display_columns} = ( [Collections.Generic.List[HashTable]] ( `
+              @{ label = "{0}"    -f "appl_id"; expression = { "{0}" -f  ${_}.appl_id } } `
+            , @{ label = "{0,6}"  -f "Active" ; expression = { "{0,6}" -f  ( ${_}.is_active? "Yes": "No") } } `
+            , @{ label = "{0,14}" -f "Amount" ; expression = { "{0,14:n2}" -f ${_}.award_amount } } `
+            , @{ label = "Covid"              ; expression = { ${_}.covid_response } } `
+            , @{ label = "F.Yr"               ; expression = { ${_}.fiscal_year } } `
+            , @{ label = "{0,10}" -f "Start"  ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_start_date } } `
+            , @{ label = "{0,10}" -f "End"    ; expression = { "{0:yyyy-MM-dd}" -f ${_}.project_end_date } } `
+            , @{ label = "{0,10}" -f "Awarded"; expression = { "{0:yyyy-MM-dd}" -f ${_}.award_notice_date } } `
+            , @{ label = "Investigator(s)"    ; expression = { ${_}.contact_pi_name } } `
+            , @{ label = "Title"              ; expression = { "{0}" -f ( ${_}.project_title ) } }
+         )
+      )
+      # fine-tune output display = begins...
+      # if covid_response is not required to be shown in the output, remove it (it is at index 3 now, change later, if needed)
+      if ( -not ${cfg}.show_covid_response ) { ${display_columns}.RemoveAt(3) }
+      # if the investigator (& if only one) need not be shown in the output, remove it (it is at index 8 now, change later, if needed)
+      if ( ${cfg}.hide_pis ) { ${display_columns}.RemoveAt(8) }
+      # fine-tune output display = ends...
+      # now display project list in table format
+      ${nih_projects}.results | Format-Table ${display_columns}
 }
