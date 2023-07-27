@@ -1,3 +1,0 @@
-After setting up pull request rule
-
-change 2
